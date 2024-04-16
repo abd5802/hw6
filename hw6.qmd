@@ -1,6 +1,6 @@
 ---
 title: "Homework 6"
-author: "[Insert your name here]{style='background-color: yellow;'}"
+author: "[Ann DeFrancesco]{style='background-color: yellow;'}"
 toc: true
 title-block-banner: true
 title-block-style: default
@@ -68,10 +68,18 @@ Read the data file as a tibble in R. Preprocess the data such that:
 2. all column names to lower case for consistency
 3. Any observations with missing values are dropped
 
-```R
+```{R}
 path <- "data/spending.csv"
 
-df <- ... # Insert your code here
+df <- read.csv(path, header = TRUE)
+
+df_x <- df %>%
+  mutate(across(where(is.numeric), as.numeric)) %>%
+  mutate(across(where(is.factor), as.factor)) %>%
+  rename_all(tolower) %>%
+  na.omit()
+
+head(df_x)
 ```
 
 ---
@@ -80,9 +88,10 @@ df <- ... # Insert your code here
 
 Visualize the correlation between the variables using the `corrplot()` function. What do you observe? What does this mean for the model?
 
-```R
-df_x  %>% ... # Insert your code here
+```{R}
+df_x  %>% cor() %>% corrplot()
 ```
+There is a strong negative correlation, meaning there is low predictive power in this model. 
 
 ---
 
@@ -91,19 +100,24 @@ df_x  %>% ... # Insert your code here
 Run a linear regression model to predict the `income` variable using the remaining predictors. Interpret the coefficients and summarize your results. 
 
 
-```R
-... # Insert your code here
+```{R}
+model <- lm(income ~ ., data = df_x)
+
+summary(model)
 ```
 
+Positive coefficients indicate an increase in spending in a specific category with an increase in income, a negative coefficient represents an increase in spending and a decrease in income. Some statistically significant predictors (<0.05) are accessories, accommodation, audio, equipment, groceries, gym, etc. 
 ---
 
 ###### 1.3 (5 points)
 
 Diagnose the model using the `vif()` function. What do you observe? What does this mean for the model?
 
-```R
-... # Insert your code here
+```{R}
+vif_values <- vif(model)
+vif_values
 ```
+All of the variables have vif values above 10, meaning there is a significant level of multicolinearity, which can lead to inflated standard errors. 
 
 ---
 
@@ -111,9 +125,10 @@ Diagnose the model using the `vif()` function. What do you observe? What does th
 
 Perform PCA using the `princomp` function in R. Print the summary of the PCA object.
 
-```R
-pca <- ... # Insert your code here
-... # Insert your code here
+```{R}
+pca <- princomp(df_x[, -ncol(df_x)], cor = TRUE)
+
+summary(pca)
 ```
 
 ---
@@ -122,24 +137,30 @@ pca <- ... # Insert your code here
 
 Make a screeplot of the proportion of variance explained by each principal component. How many principal components would you choose to keep? Why?
 
-```R
-... # Insert your code here
+```{R}
+screeplot(pca, type = "line")
+
+title(main = "Screeplot of PCA", xlab = "Principal Component", ylab = "Proportion of Variance Explained")
 ```
+I would keep the first 4 points because the slope at these points is strongly negative.
 
 
 ###### 1.6 (5 points)
 
 By setting any factor loadings below $0.2$ to $0$, summarize the factor loadings for the principal components that you chose to keep. 
 
-```R
-clean_loadings <- ... # Insert your code here
+```{R}
+loadings <- pca$loadings[, 1:4]
+clean_loadings <- ifelse(abs(loadings) < 0.2, 0, loadings)
+
+print(clean_loadings)
 ```
 
 
 Visualize the factor loadings. 
 
-```R
-... # Insert your code here
+```{R}
+biplot(pca)
 ```
 
 ---
@@ -148,37 +169,47 @@ Visualize the factor loadings.
 
 Based on the factor loadings, what do you think the principal components represent? 
 
-Provide an interpreation for each principal component you chose to keep.
+Provide an interpretation for each principal component you chose to keep.
 
+Comp 1 includes spending categories in essential categories such as housing, groceries, etc. Comp 2 and Comp 3 include spending in extra categories such as entertainment, insurance, etc. Comp 4 represents large spending such as property or investments. By understanding these interpretations we can understand spending behavior and its influence on income.
 ---
 
 ###### 1.8 (10 points)
 
 Create a new data frame with the original response variable `income` and the principal components you chose to keep. Call this data frame `df_pca`.
 
-```R
-... # Insert your code here
+```{R}
+df_pca <- cbind(df_x$income, pca$scores[, 1:4])
+colnames(df_pca) <- c("income", paste0("Comp.", 1:4))
 ```
 
 Fit a regression model to predict the `income` variable using the principal components you chose to keep. Interpret the coefficients and summarize your results. 
 
-```R
-... # Insert your code here
+```{R}
+df_pca <- as.data.frame(df_pca)
+pca_model <- lm(income ~ ., data = df_pca)
+
+summary(pca_model)
 ```
 
 Compare the results of the regression model in 1.3 and 1.9. What do you observe? What does this mean for the model?
 
-```R
-... # Insert your code here
-
+```{R}
+summary(model)
+summary(pca_model)
 ```
+
+Model 1.9 has a much higher adjusted r-squared value than model 1.3. This suggests that the principal components explain a larger proportion of the variance in income compared to the original predictor variables. Also, the simple structure of model 1.9 helps reduce the complexity of the model and can help in avoiding overfitting compared to model 1.3. Overall, we can see that using principal components predictors can lead to a simpler model while still capturing most of the variability in the data.
+
 ---
 
 ###### 1.10 (10 points)
 
 Based on your interpretation of the principal components from Question 1.7, provide an interpretation of the regression model in Question 1.9.
 
-
+Comp 1: This coefficient represents the change in income associated with an increase in spending on essential expenses such as housing and groceries. A positive coefficient suggests that higher spending in these categories is associated with higher income.
+Comp 2 and Comp 3: These coefficients represent the change in income associated with an increase in spending on extra expenses such as entertainment and insurance. Positive coefficients suggest that higher spending in these categories is associated with higher income.
+Comp 4: This coefficient represents the change in income associated with a increase in large spending categories such as property or investments. A positive coefficient suggests that higher spending in these categories is associated with higher income.
 
 ---
 
